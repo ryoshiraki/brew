@@ -281,24 +281,8 @@ module Homebrew
           puts "You're on your own. Failures are expected so don't create any issues, please!"
         end
 
-        installed_formulae = formulae.select do |f|
-          Install.install_formula?(
-            f,
-            head:              args.HEAD?,
-            fetch_head:        args.fetch_HEAD?,
-            only_dependencies: args.only_dependencies?,
-            force:             args.force?,
-            quiet:             args.quiet?,
-            overwrite:         args.overwrite?,
-          )
-        end
-
-        return if formulae.any? && installed_formulae.empty?
-
-        Install.perform_preinstall_checks_once
-        Install.check_cc_argv(args.cc)
-
-        overwrite = if GitHub::Actions.env_set? &&
+        overwrite = if !args.overwrite? &&
+                       GitHub::Actions.env_set? &&
                        ENV["HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE"].blank? &&
                        ENV["HOMEBREW_GITHUB_ACTIONS"].blank?
           if ENV["HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING"].blank?
@@ -307,7 +291,7 @@ module Homebrew
 
               To disable this behaviour, set `HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE`.
 
-              To silence this warning, set `HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING`.
+              To silence this warning, set `HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING` or pass `--overwrite` to `brew install`.
             WARNING
 
             puts GitHub::Actions::Annotation.new(:warning, message)
@@ -323,6 +307,23 @@ module Homebrew
         else
           args.overwrite?
         end
+
+        installed_formulae = formulae.select do |f|
+          Install.install_formula?(
+            f,
+            head:              args.HEAD?,
+            fetch_head:        args.fetch_HEAD?,
+            only_dependencies: args.only_dependencies?,
+            force:             args.force?,
+            quiet:             args.quiet?,
+            overwrite:,
+          )
+        end
+
+        return if formulae.any? && installed_formulae.empty?
+
+        Install.perform_preinstall_checks_once
+        Install.check_cc_argv(args.cc)
 
         Install.install_formulae(
           installed_formulae,
