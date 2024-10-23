@@ -298,6 +298,32 @@ module Homebrew
         Install.perform_preinstall_checks_once
         Install.check_cc_argv(args.cc)
 
+        overwrite = if GitHub::Actions.env_set? &&
+                       ENV["HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE"].blank? &&
+                       ENV["HOMEBREW_GITHUB_ACTIONS"].blank?
+          if ENV["HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING"].blank?
+            message = <<~WARNING
+              In GitHub Actions, `brew install` behaves the same as `brew install --overwrite`.
+
+              To disable this behaviour, set `HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE`.
+
+              To silence this warning, set `HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING`.
+            WARNING
+
+            puts GitHub::Actions::Annotation.new(:warning, message)
+
+            # Print warning only once.
+            github_env = ENV.fetch("GITHUB_ENV", "")
+            if File.exist?(github_env) && File.writable?(github_env)
+              File.open(github_env, "a") { |f| f.puts("HOMEBREW_GITHUB_ACTIONS_NO_INSTALL_OVERWRITE_WARNING=1") }
+            end
+          end
+
+          true
+        else
+          args.overwrite?
+        end
+
         Install.install_formulae(
           installed_formulae,
           build_bottle:               args.build_bottle?,
@@ -313,7 +339,7 @@ module Homebrew
           keep_tmp:                   args.keep_tmp?,
           debug_symbols:              args.debug_symbols?,
           force:                      args.force?,
-          overwrite:                  args.overwrite?,
+          overwrite:,
           debug:                      args.debug?,
           quiet:                      args.quiet?,
           verbose:                    args.verbose?,
