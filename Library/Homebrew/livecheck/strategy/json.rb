@@ -117,7 +117,7 @@ module Homebrew
             provided_content
           else
             match_data.merge!(Strategy.page_content(url, homebrew_curl:))
-            match_data[:content]
+            match_data[:content]&.strip
           end
           return match_data if content.blank?
 
